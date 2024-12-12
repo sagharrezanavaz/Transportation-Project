@@ -7,6 +7,14 @@ from sklearn.linear_model import LinearRegression
 from sklearn.feature_selection import RFE, SelectKBest, chi2
 from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor, RandomForestRegressor
 from sklearn.model_selection import cross_val_score
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from sklearn.metrics import classification_report, accuracy_score
+
 # Load the dataset
 df = pd.read_csv('2021_Green_Taxi_Trip_Data.csv')
 
@@ -90,7 +98,7 @@ missing_value_df = pd.DataFrame({'column_name': df.columns, 'percent_missing': p
 print(missing_value_df)
 
 # Extract hour from pickup_datetime
-df_1=df[:300000]
+df_1=df[:100000]
 # 1. Trip Type Distribution by Hour  
 trip_type_hourly_distribution = df_1.groupby(['pickup_hour', 'trip_type']).size().unstack(fill_value=0)
 
@@ -178,7 +186,7 @@ def backward_feature_selection(data, target_column='total_amount', n_features=5)
     return list(selected_features)
 
 backward_selected_features = backward_feature_selection(df_1, target_column='total_amount', n_features=5)
-print("Selected Features:", backward_selected_features)
+print("Backward Selected Features:", backward_selected_features)
 
 
 ##### بخش دوم خواسته سوم
@@ -204,7 +212,7 @@ def forward_feature_selection(data, target_column='total_amount', n_features=5):
             remaining_features.remove(best_feature)
     return selected_features
 forward_selected_features = forward_feature_selection(df_1, target_column='total_amount', n_features=5)
-print("Selected features:", forward_selected_features)
+print("Forward Selected features:", forward_selected_features)
 
 
 def random_forest_feature_selection(data, target_column='total_amount', n_features=5):
@@ -219,4 +227,78 @@ def random_forest_feature_selection(data, target_column='total_amount', n_featur
     selected_features = feature_importances.nlargest(n_features).index.tolist()
     return selected_features
 rf_selected_features = random_forest_feature_selection(df_1, target_column='total_amount', n_features=5)
-print("Selected Features:", rf_selected_features)
+print("Random Forest Selected Features:", rf_selected_features)
+
+
+# def chi_square_feature_selection(data, target_column='total_amount', n_features=5):
+#     data = data.copy()
+#     # تبدیل ستون هدف به دسته‌بندی اگر عددی پیوسته است
+#     if data[target_column].dtype in ['float64', 'int64']:
+#         data.loc[:, target_column] = pd.qcut(data[target_column], q=4, labels=False, duplicates='drop')
+    
+#     # جدا کردن ویژگی‌ها و هدف
+#     X = data.drop(columns=[target_column])
+#     y = data[target_column]
+
+#     # تبدیل ویژگی‌های عددی به دسته‌بندی برای استفاده در chi-square
+#     for column in X.columns:
+#         if X[column].dtype in ['float64', 'int64']:
+#             X.loc[:, column] = pd.qcut(X[column], q=5, labels=False, duplicates='drop').fillna(0)
+
+#     # اعمال chi-square
+#     chi_selector = SelectKBest(score_func=chi2, k=n_features)
+#     X_kbest = chi_selector.fit_transform(X, y)
+
+#     # انتخاب ویژگی‌های برتر
+#     selected_features = X.columns[chi_selector.get_support()]
+#     return selected_features
+def chi_square_feature_selection(data, target_column='pct', n_features=5):    
+    if data[target_column].dtype not in ['int64', 'int32', 'bool', 'uint8']:
+        data[target_column] = pd.qcut(data[target_column], q=4, labels=False)
+    X = data.drop(columns=[target_column])
+    y = data[target_column]
+    for column in X.columns:
+        if X[column].dtype in ['float64', 'int64']:
+            X[column] = pd.cut(X[column], bins=5, labels=False)
+        X[column] = X[column].clip(lower=0)
+    
+    chi_selector = SelectKBest(score_func=chi2, k=n_features)
+    X_kbest = chi_selector.fit_transform(X, y)
+    
+    selected_features = X.columns[chi_selector.get_support()]
+    return selected_features
+# اجرای chi-square روی داده‌ها
+chi_selected_features = chi_square_feature_selection(df_1, target_column='total_amount', n_features=5)
+print("Chi-Square Selected Features (Chi-Square):", list(chi_selected_features))
+
+######################### بخش سوم
+df_1['tip_given'] = (df_1['tip_amount'] > 0).astype(int)
+X = df_1.drop(columns=['tip_given', 'tip_amount'])  # حذف ستون‌های غیرضروری
+y = df_1['tip_given']
+
+# تقسیم داده‌ها به مجموعه‌های آموزش و تست
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# 1. Decision Tree Classifier
+dt_model = DecisionTreeClassifier(random_state=42)
+dt_model.fit(X_train, y_train)
+y_pred_dt = dt_model.predict(X_test)
+print("Decision Tree Classifier Report:")
+print(classification_report(y_test, y_pred_dt))
+print("Accuracy:", accuracy_score(y_test, y_pred_dt))
+
+# 2. Random Forest Classifier
+rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+rf_model.fit(X_train, y_train)
+y_pred_rf = rf_model.predict(X_test)
+print("\nRandom Forest Classifier Report:")
+print(classification_report(y_test, y_pred_rf))
+print("Accuracy:", accuracy_score(y_test, y_pred_rf))
+
+# 3. XGBoost Classifier
+xgb_model = XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
+xgb_model.fit(X_train, y_train)
+y_pred_xgb = xgb_model.predict(X_test)
+print("\nXGBoost Classifier Report:")
+print(classification_report(y_test, y_pred_xgb))
+print("Accuracy:", accuracy_score(y_test, y_pred_xgb))

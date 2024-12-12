@@ -290,71 +290,119 @@ from xgboost import XGBRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
 
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.linear_model import LinearRegression
+import pandas as pd
 
-# Define features and target
-X = df_1.drop(columns=['total_amount'])  # Features
-y = df_1['total_amount']  # Target
+# Function to train and evaluate linear regression model
+def evaluate_linear_regression(features, X, y):
+    # Split data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X[features], y, test_size=0.2, random_state=42)
 
-# Split data into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    # Train Linear Regression model
+    lr_model = LinearRegression()
+    lr_model.fit(X_train, y_train)
 
-# 1. Linear Regression Model
+    # Predictions and evaluation
+    y_pred = lr_model.predict(X_test)
+    mse = mean_squared_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+
+    return mse, r2
+
+# Define target variable and features
+y = df_1['total_amount']
+X = df_1.drop(columns=['total_amount'])
+
+# Feature subsets from different selection methods
+feature_selection_methods = {
+    'Backward': backward_selected_features,
+    'Forward': forward_selected_features,
+    'Random Forest': rf_selected_features,
+    'Chi-Square': list(chi_selected_features)
+}
+
+# Evaluate Linear Regression for each feature subset
+results = []
+for method, features in feature_selection_methods.items():
+    mse, r2 = evaluate_linear_regression(features, X, y)
+    results.append({'Method': method, 'MSE': mse, 'R^2': r2})
+
+# Convert results to a DataFrame
+results_df = pd.DataFrame(results)
+
+# Find the best feature set based on MSE
+best_method = results_df.loc[results_df['MSE'].idxmin()]
+best_features = feature_selection_methods[best_method['Method']]
+
+print("Feature Selection Results:")
+print(results_df)
+print("\nBest Feature Set Based on MSE:")
+print(f"Method: {best_method['Method']}, MSE: {best_method['MSE']}, R^2: {best_method['R^2']}")
+
+# Integrate the best Linear Regression model with Random Forest and XGBoost for comparison
+# 1. Train and evaluate the best Linear Regression model
+X_train, X_test, y_train, y_test = train_test_split(X[best_features], y, test_size=0.2, random_state=42)
 lr_model = LinearRegression()
 lr_model.fit(X_train, y_train)
-
-# Predictions and evaluation
 y_pred_lr = lr_model.predict(X_test)
 lr_mse = mean_squared_error(y_test, y_pred_lr)
 lr_r2 = r2_score(y_test, y_pred_lr)
 
-print("Linear Regression Results:")
-print(f"Mean Squared Error: {lr_mse}")
-print(f"R^2 Score: {lr_r2}")
-
 # 2. Random Forest Regressor
 rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
 rf_model.fit(X_train, y_train)
-
-# Predictions and evaluation
 y_pred_rf = rf_model.predict(X_test)
 rf_mse = mean_squared_error(y_test, y_pred_rf)
 rf_r2 = r2_score(y_test, y_pred_rf)
 
-print("\nRandom Forest Results:")
-print(f"Mean Squared Error: {rf_mse}")
-print(f"R^2 Score: {rf_r2}")
-
 # 3. XGBoost Regressor
 xgb_model = XGBRegressor(n_estimators=100, learning_rate=0.1, max_depth=6, random_state=42)
 xgb_model.fit(X_train, y_train)
-
-# Predictions and evaluation
 y_pred_xgb = xgb_model.predict(X_test)
 xgb_mse = mean_squared_error(y_test, y_pred_xgb)
 xgb_r2 = r2_score(y_test, y_pred_xgb)
 
-print("\nXGBoost Results:")
-print(f"Mean Squared Error: {xgb_mse}")
-print(f"R^2 Score: {xgb_r2}")
-
 # Comparison of models
-results = {
+comparison_results = {
     'Model': ['Linear Regression', 'Random Forest', 'XGBoost'],
     'Mean Squared Error': [lr_mse, rf_mse, xgb_mse],
     'R^2 Score': [lr_r2, rf_r2, xgb_r2]
 }
-results_df = pd.DataFrame(results)
+comparison_df = pd.DataFrame(comparison_results)
+
 print("\nModel Comparison:")
-print(results_df)
+print(comparison_df)
+best_model = comparison_df.loc[comparison_df['Mean Squared Error'].idxmin()]
 
-# Plotting feature importance for tree-based models
-rf_importances = pd.Series(rf_model.feature_importances_, index=X.columns)
-xgb_importances = pd.Series(xgb_model.feature_importances_, index=X.columns)
-
-plt.figure(figsize=(12, 6))
-plt.subplot(1, 2, 1)
-rf_importances.nlargest(10).plot(kind='bar', title='Random Forest Feature Importances')
-plt.subplot(1, 2, 2)
-xgb_importances.nlargest(10).plot(kind='bar', title='XGBoost Feature Importances')
-plt.tight_layout()
-plt.show()
+# Display the best model based on MSE
+print("\nBest Model Based on MSE:")
+print(f"Method: {best_model['Model']}, MSE: {best_model['Mean Squared Error']:.4f}, R^2: {best_model['R^2 Score']:.4f}")
+# # Assuming you used `rf_selected_features` for training:
+# X_train_rf = X_train[rf_selected_features]
+# X_test_rf = X_test[rf_selected_features]
+#
+# # Fit the RandomForest model
+# rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+# rf_model.fit(X_train_rf, y_train)
+#
+# # Now, ensure that the feature importances match the selected features
+# rf_importances = pd.Series(rf_model.feature_importances_, index=rf_selected_features)
+#
+# # Plotting the top 10 important features
+# plt.figure(figsize=(12, 6))
+# rf_importances.nlargest(10).plot(kind='bar', title='Random Forest Feature Importances')
+# plt.tight_layout()
+# plt.show()
+#
+# # Plotting feature importance for tree-based models
+# rf_importances = pd.Series(rf_model.feature_importances_)
+# xgb_importances = pd.Series(xgb_model.feature_importances_)
+#
+# plt.figure(figsize=(12, 6))
+# plt.subplot(1, 2, 1)
+# rf_importances.nlargest(10).plot(kind='bar', title='Random Forest Feature Importances')
+# plt.subplot(1, 2, 2)
+# xgb_importances.nlargest(10).plot(kind='bar', title='XGBoost Feature Importances')
+# plt.tight_layout()
+# plt.show()

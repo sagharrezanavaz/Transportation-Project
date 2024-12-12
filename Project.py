@@ -7,8 +7,6 @@ from sklearn.linear_model import LinearRegression
 from sklearn.feature_selection import RFE, SelectKBest, chi2
 from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor, RandomForestRegressor
 from sklearn.model_selection import cross_val_score
-import pandas as pd
-import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
@@ -214,6 +212,7 @@ def forward_feature_selection(data, target_column='total_amount', n_features=5):
 forward_selected_features = forward_feature_selection(df_1, target_column='total_amount', n_features=5)
 print("Forward Selected features:", forward_selected_features)
 
+##### بخش  خواسته سوم
 
 def random_forest_feature_selection(data, target_column='total_amount', n_features=5):
     X = data.drop(columns=[target_column])
@@ -230,28 +229,6 @@ rf_selected_features = random_forest_feature_selection(df_1, target_column='tota
 print("Random Forest Selected Features:", rf_selected_features)
 
 
-# def chi_square_feature_selection(data, target_column='total_amount', n_features=5):
-#     data = data.copy()
-#     # تبدیل ستون هدف به دسته‌بندی اگر عددی پیوسته است
-#     if data[target_column].dtype in ['float64', 'int64']:
-#         data.loc[:, target_column] = pd.qcut(data[target_column], q=4, labels=False, duplicates='drop')
-    
-#     # جدا کردن ویژگی‌ها و هدف
-#     X = data.drop(columns=[target_column])
-#     y = data[target_column]
-
-#     # تبدیل ویژگی‌های عددی به دسته‌بندی برای استفاده در chi-square
-#     for column in X.columns:
-#         if X[column].dtype in ['float64', 'int64']:
-#             X.loc[:, column] = pd.qcut(X[column], q=5, labels=False, duplicates='drop').fillna(0)
-
-#     # اعمال chi-square
-#     chi_selector = SelectKBest(score_func=chi2, k=n_features)
-#     X_kbest = chi_selector.fit_transform(X, y)
-
-#     # انتخاب ویژگی‌های برتر
-#     selected_features = X.columns[chi_selector.get_support()]
-#     return selected_features
 def chi_square_feature_selection(data, target_column='pct', n_features=5):    
     if data[target_column].dtype not in ['int64', 'int32', 'bool', 'uint8']:
         data[target_column] = pd.qcut(data[target_column], q=4, labels=False)
@@ -261,10 +238,8 @@ def chi_square_feature_selection(data, target_column='pct', n_features=5):
         if X[column].dtype in ['float64', 'int64']:
             X[column] = pd.cut(X[column], bins=5, labels=False)
         X[column] = X[column].clip(lower=0)
-    
     chi_selector = SelectKBest(score_func=chi2, k=n_features)
     X_kbest = chi_selector.fit_transform(X, y)
-    
     selected_features = X.columns[chi_selector.get_support()]
     return selected_features
 # اجرای chi-square روی داده‌ها
@@ -272,6 +247,7 @@ chi_selected_features = chi_square_feature_selection(df_1, target_column='total_
 print("Chi-Square Selected Features (Chi-Square):", list(chi_selected_features))
 
 ######################### بخش سوم
+
 df_1['tip_given'] = (df_1['tip_amount'] > 0).astype(int)
 X = df_1.drop(columns=['tip_given', 'tip_amount'])  # حذف ستون‌های غیرضروری
 y = df_1['tip_given']
@@ -302,3 +278,83 @@ y_pred_xgb = xgb_model.predict(X_test)
 print("\nXGBoost Classifier Report:")
 print(classification_report(y_test, y_pred_xgb))
 print("Accuracy:", accuracy_score(y_test, y_pred_xgb))
+
+#### بخش 4 خواسته 3
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+from xgboost import XGBRegressor
+from sklearn.metrics import mean_squared_error, r2_score
+import matplotlib.pyplot as plt
+
+
+# Define features and target
+X = df_1.drop(columns=['total_amount'])  # Features
+y = df_1['total_amount']  # Target
+
+# Split data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# 1. Linear Regression Model
+lr_model = LinearRegression()
+lr_model.fit(X_train, y_train)
+
+# Predictions and evaluation
+y_pred_lr = lr_model.predict(X_test)
+lr_mse = mean_squared_error(y_test, y_pred_lr)
+lr_r2 = r2_score(y_test, y_pred_lr)
+
+print("Linear Regression Results:")
+print(f"Mean Squared Error: {lr_mse}")
+print(f"R^2 Score: {lr_r2}")
+
+# 2. Random Forest Regressor
+rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+rf_model.fit(X_train, y_train)
+
+# Predictions and evaluation
+y_pred_rf = rf_model.predict(X_test)
+rf_mse = mean_squared_error(y_test, y_pred_rf)
+rf_r2 = r2_score(y_test, y_pred_rf)
+
+print("\nRandom Forest Results:")
+print(f"Mean Squared Error: {rf_mse}")
+print(f"R^2 Score: {rf_r2}")
+
+# 3. XGBoost Regressor
+xgb_model = XGBRegressor(n_estimators=100, learning_rate=0.1, max_depth=6, random_state=42)
+xgb_model.fit(X_train, y_train)
+
+# Predictions and evaluation
+y_pred_xgb = xgb_model.predict(X_test)
+xgb_mse = mean_squared_error(y_test, y_pred_xgb)
+xgb_r2 = r2_score(y_test, y_pred_xgb)
+
+print("\nXGBoost Results:")
+print(f"Mean Squared Error: {xgb_mse}")
+print(f"R^2 Score: {xgb_r2}")
+
+# Comparison of models
+results = {
+    'Model': ['Linear Regression', 'Random Forest', 'XGBoost'],
+    'Mean Squared Error': [lr_mse, rf_mse, xgb_mse],
+    'R^2 Score': [lr_r2, rf_r2, xgb_r2]
+}
+results_df = pd.DataFrame(results)
+print("\nModel Comparison:")
+print(results_df)
+
+# Plotting feature importance for tree-based models
+rf_importances = pd.Series(rf_model.feature_importances_, index=X.columns)
+xgb_importances = pd.Series(xgb_model.feature_importances_, index=X.columns)
+
+plt.figure(figsize=(12, 6))
+plt.subplot(1, 2, 1)
+rf_importances.nlargest(10).plot(kind='bar', title='Random Forest Feature Importances')
+plt.subplot(1, 2, 2)
+xgb_importances.nlargest(10).plot(kind='bar', title='XGBoost Feature Importances')
+plt.tight_layout()
+plt.show()

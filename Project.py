@@ -107,7 +107,10 @@ plt.grid()
 plt.tight_layout()
 plt.show()
 
-print(df.head(10))
+df = pd.get_dummies(df, columns=['PU_Borough'], prefix='PU_Borough', drop_first=False)
+print(df.columns) 
+df = df.drop('PU_Borough_Staten Island', axis=1)  
+
 ##############            بخش دوم
 # محاسبه ماتریس همبستگی
 correlation_matrix = df.corr()
@@ -125,10 +128,8 @@ print(correlation_with_total)
 ##### بخش دوم خواسته سوم
 
 def backward_feature_selection(data, target_column='total_amount', n_features=5):
-    numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns
-    features = numeric_columns.drop('total_amount')
-    X = df[features]
-    y = df['total_amount']
+    X = data.drop(columns=[target_column])
+    y = data[target_column]
     model = LinearRegression()
     rfe = RFE(estimator=model, n_features_to_select=n_features)
     rfe.fit(X, y)
@@ -142,10 +143,8 @@ print("Selected Features:", backward_selected_features)
 ##### بخش دوم خواسته سوم
 
 def forward_feature_selection(data, target_column='total_amount', n_features=5):
-    numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns
-    features = numeric_columns.drop('total_amount')
-    X = df[features]
-    y = df['total_amount']
+    X = data.drop(columns=[target_column])
+    y = data[target_column]
     model = LinearRegression()
     selected_features = []
     remaining_features = list(X.columns)

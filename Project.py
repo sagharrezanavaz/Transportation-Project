@@ -443,5 +443,3 @@ rmse = np.sqrt(mean_squared_error(y_test, y_pred))
 
 print(f"Mean Absolute Error (MAE): {mae:.2f}")
 print(f"Root Mean Squared Error (RMSE): {rmse:.2f}")
-
-

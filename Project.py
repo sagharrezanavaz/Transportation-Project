@@ -97,6 +97,7 @@ print(missing_value_df)
 
 # Extract hour from pickup_datetime
 df_1=df[:100000]
+print(df_1.columns)
 # 1. Trip Type Distribution by Hour  
 trip_type_hourly_distribution = df_1.groupby(['pickup_hour', 'trip_type']).size().unstack(fill_value=0)
 
@@ -144,7 +145,15 @@ plt.show()
 
 # 4
 # Grouping by all dummy variables for boroughs and pickup hour
-green_taxi_trend = df_1.groupby(['pickup_hour'] + [col for col in df.columns if col.startswith('PU_') or col.startswith('DO_')]).size().unstack(fill_value=0)
+df_1['Pickup_Borough'] = df_1.apply(
+    lambda row: 'Brooklyn' if row['PU_Brooklyn'] == 1 else
+                'EWR' if row['PU_EWR'] == 1 else
+                'Manhattan' if row['PU_Manhattan'] == 1 else
+                'Queens' if row['PU_Queens'] == 1 else
+                'Staten Island' if row['PU_Staten Island'] == 1 else
+                'Bronx', axis=1
+)
+green_taxi_trend = df_1.groupby([ 'Pickup_Borough','pickup_hour']).size().unstack(fill_value=0)
 
 # Plotting the trend of green taxi usage by boroughs
 plt.figure(figsize=(14, 7))
@@ -156,7 +165,7 @@ plt.legend(title='Borough', bbox_to_anchor=(1.05, 1), loc='upper left')
 plt.grid()
 plt.tight_layout()
 plt.show()
-
+df_1 = df_1.drop('Pickup_Borough', axis=1)
 
 ##############            بخش دوم
 # محاسبه ماتریس همبستگی

@@ -2,6 +2,11 @@ import pandas as pd
 import numpy as np  
 import seaborn as sns  
 import matplotlib.pyplot as plt  
+from sklearn.linear_model import LinearRegression
+from sklearn.feature_selection import RFE
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import cross_val_score
 
 # Load the dataset  
 df = pd.read_csv('2021_Green_Taxi_Trip_Data.csv')  
@@ -75,37 +80,25 @@ plt.grid(axis='y')
 plt.show()
 
 # 4
-# borough_df = pd.read_csv('Boroughs.csv')  
-# print(borough_df.head())  
-# print(borough_df.info())  
+borough_df = pd.read_csv('Boroughs.csv')  
+print(borough_df.head())  
+print(borough_df.info())  
 
-# # Merge borough information into the main DataFrame  
-# # Assuming Borough.csv has 'LocationID' and 'Borough' columns  
-# df = df.merge(borough_df[['LocationID', 'Borough']], left_on='PULocationID', right_on='LocationID', how='left')  
-# df.rename(columns={'Borough': 'PU_Borough'}, inplace=True)  # Rename the column for pickup borough  
+# Merge borough information into the main DataFrame  
+# Assuming Borough.csv has 'LocationID' and 'Borough' columns  
+df = df.merge(borough_df[['LocationID', 'Borough']], left_on='PULocationID', right_on='LocationID', how='left')  
+df.rename(columns={'Borough': 'PU_Borough'}, inplace=True)  # Rename the column for pickup borough  
 
-# df = df.merge(borough_df[['LocationID', 'Borough']], left_on='DOLocationID', right_on='LocationID', how='left')  
-# df.rename(columns={'Borough': 'DO_Borough'}, inplace=True)  # Rename the column for drop-off borough  
-
-
-# 4. بارگذاری داده‌ها
-df = pd.read_csv('2021_Green_Taxi_Trip_Data.csv')
-
-# تبدیل به فرمت datetime
-df['pickup_datetime'] = pd.to_datetime(df['lpep_pickup_datetime'])
-df['pickup_hour'] = df['pickup_datetime'].dt.hour
+df = df.merge(borough_df[['LocationID', 'Borough']], left_on='DOLocationID', right_on='LocationID', how='left')  
+df.rename(columns={'Borough': 'DO_Borough'}, inplace=True)  # Rename the column for drop-off borough  
+print(borough_df['Borough'].unique())
 
 # گروه‌بندی بر اساس مناطق شهری
-borough_mapping = {
-    1: 'Manhattan', 2: 'Bronx', 3: 'Brooklyn', 4: 'Queens', 5: 'Staten Island'
-}
-df['borough'] = df['PULocationID'].map(borough_mapping)
+green_taxi_trend = df.groupby(['PU_Borough', 'pickup_hour']).size().unstack(fill_value=0)
 
-# شمارش تعداد سفرها در هر منطقه
-usage_by_borough = df.groupby(['borough', 'pickup_hour']).size().unstack(fill_value=0)
-
-# رسم نمودار
-usage_by_borough.T.plot(figsize=(14, 7), kind='bar')
+# رسم نمودار روند استفاده از تاکسی سبز در بخش‌های مختلف شهری
+plt.figure(figsize=(14, 7))
+green_taxi_trend.T.plot(kind='bar', figsize=(14, 7))
 plt.title('Green Taxi Usage Trend by Borough')
 plt.xlabel('Hour of Day')
 plt.ylabel('Number of Trips')
@@ -114,6 +107,7 @@ plt.grid()
 plt.tight_layout()
 plt.show()
 
+print(df.head(10))
 ##############            بخش دوم
 # محاسبه ماتریس همبستگی
 correlation_matrix = df.corr()
@@ -128,4 +122,46 @@ correlation_with_total = correlation_matrix['total_amount'].sort_values(ascendin
 print("Top correlations with total_amount:")
 print(correlation_with_total)
 
-#
+##### بخش دوم خواسته سوم
+
+def backward_feature_selection(data, target_column='total_amount', n_features=5):
+    numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns
+    features = numeric_columns.drop('total_amount')
+    X = df[features]
+    y = df['total_amount']
+    model = LinearRegression()
+    rfe = RFE(estimator=model, n_features_to_select=n_features)
+    rfe.fit(X, y)
+    selected_features = X.columns[rfe.support_]
+    return list(selected_features)
+
+backward_selected_features = backward_feature_selection(df, target_column='total_amount', n_features=5)
+print("Selected Features:", backward_selected_features)
+
+
+##### بخش دوم خواسته سوم
+
+def forward_feature_selection(data, target_column='total_amount', n_features=5):
+    numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns
+    features = numeric_columns.drop('total_amount')
+    X = df[features]
+    y = df['total_amount']
+    model = LinearRegression()
+    selected_features = []
+    remaining_features = list(X.columns)
+    while len(selected_features) < n_features and remaining_features:
+        best_score = -np.inf
+        best_feature = None
+        for feature in remaining_features:
+            trial_features = selected_features + [feature]
+            scores = cross_val_score(model, X[trial_features], y, cv=5, scoring='r2')
+            mean_score = np.mean(scores)
+            if mean_score > best_score:
+                best_score = mean_score
+                best_feature = feature
+        if best_feature is not None:
+            selected_features.append(best_feature)
+            remaining_features.remove(best_feature)
+    return selected_features
+forward_selected_features = forward_feature_selection(df, target_column='total_amount', n_features=5)
+print("Selected features:", forward_selected_features)

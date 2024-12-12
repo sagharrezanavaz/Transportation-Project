@@ -12,6 +12,8 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 from sklearn.metrics import classification_report, accuracy_score
+import xgboost as xgb
+from sklearn.metrics import mean_absolute_error, root_mean_squared_error, mean_squared_error
 
 # Load the dataset
 df = pd.read_csv('2021_Green_Taxi_Trip_Data.csv')
@@ -357,6 +359,7 @@ lr_model.fit(X_train, y_train)
 y_pred_lr = lr_model.predict(X_test)
 lr_mse = mean_squared_error(y_test, y_pred_lr)
 lr_r2 = r2_score(y_test, y_pred_lr)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
 # 2. Random Forest Regressor
 rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
@@ -404,14 +407,39 @@ print(f"Method: {best_model['Model']}, MSE: {best_model['Mean Squared Error']:.4
 # plt.tight_layout()
 # plt.show()
 #
-# # Plotting feature importance for tree-based models
-# rf_importances = pd.Series(rf_model.feature_importances_)
-# xgb_importances = pd.Series(xgb_model.feature_importances_)
-#
-# plt.figure(figsize=(12, 6))
-# plt.subplot(1, 2, 1)
-# rf_importances.nlargest(10).plot(kind='bar', title='Random Forest Feature Importances')
-# plt.subplot(1, 2, 2)
-# xgb_importances.nlargest(10).plot(kind='bar', title='XGBoost Feature Importances')
-# plt.tight_layout()
-# plt.show()
+# Plotting feature importance for tree-based models
+rf_importances = pd.Series(rf_model.feature_importances_,index=X.columns)
+xgb_importances = pd.Series(xgb_model.feature_importances_,index=X.columns)
+
+plt.figure(figsize=(12, 6))
+plt.subplot(1, 2, 1)
+rf_importances.nlargest(10).plot(kind='bar', title='Random Forest Feature Importances')
+plt.subplot(1, 2, 2)
+xgb_importances.nlargest(10).plot(kind='bar', title='XGBoost Feature Importances')
+plt.tight_layout()
+plt.show()
+from sklearn.model_selection import GridSearchCV
+import numpy as np
+
+
+
+param_grid = {
+    'learning_rate': [0.01, 0.05, 0.1],
+    'max_depth': [3, 5, 7],
+    'subsample': [0.8, 0.9, 1.0]
+}
+
+grid_search = GridSearchCV(estimator=xgb_model, param_grid=param_grid, scoring='neg_mean_absolute_error', cv=5, verbose=1)
+grid_search.fit(X_train, y_train)
+
+
+print(f"Best parameters found: {grid_search.best_params_}")
+
+best_xgb_model = grid_search.best_estimator_
+y_pred = best_xgb_model.predict(X_test)
+
+mae = mean_absolute_error(y_test, y_pred)
+rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+
+print(f"Mean Absolute Error (MAE): {mae:.2f}")
+print(f"Root Mean Squared Error (RMSE): {rmse:.2f}")

@@ -205,4 +205,18 @@ def forward_feature_selection(data, target_column='total_amount', n_features=5):
     return selected_features
 forward_selected_features = forward_feature_selection(df_1, target_column='total_amount', n_features=5)
 print("Selected features:", forward_selected_features)
-#
+
+
+def random_forest_feature_selection(data, target_column='total_amount', n_features=5):
+    X = data.drop(columns=[target_column])
+    y = data[target_column]
+
+    model = RandomForestRegressor(n_estimators=100, random_state=0)
+    model.fit(X, y)
+
+    feature_importances = pd.Series(model.feature_importances_, index=X.columns)
+
+    selected_features = feature_importances.nlargest(n_features).index.tolist()
+    return selected_features
+rf_selected_features = random_forest_feature_selection(df_1, target_column='total_amount', n_features=5)
+print("Selected Features:", rf_selected_features)

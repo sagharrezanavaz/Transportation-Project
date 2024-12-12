@@ -165,3 +165,4 @@ def forward_feature_selection(data, target_column='total_amount', n_features=5):
     return selected_features
 forward_selected_features = forward_feature_selection(df, target_column='total_amount', n_features=5)
 print("Selected features:", forward_selected_features)
+#

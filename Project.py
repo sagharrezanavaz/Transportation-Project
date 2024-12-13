@@ -14,6 +14,8 @@ from xgboost import XGBClassifier
 from sklearn.metrics import classification_report, accuracy_score
 import xgboost as xgb
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, mean_squared_error
+from sklearn.model_selection import GridSearchCV
+
 
 # Load the dataset
 df = pd.read_csv('2021_Green_Taxi_Trip_Data.csv')
@@ -44,6 +46,8 @@ print(missing_value_df)
 df['pickup_hour'] = df['pickup_datetime'].dt.hour
 df['pickup_day'] = df['pickup_datetime'].dt.day
 df['pickup_month'] = df['pickup_datetime'].dt.month
+df['weekday'] = df['pickup_datetime'].dt.day_name()
+print(df[['weekday', 'pickup_hour']].isnull().sum())
 
 # Extract dropoff datetime
 df['dropoff_datetime'] = pd.to_datetime(df['lpep_dropoff_datetime'], format='%m/%d/%Y %I:%M:%S %p')
@@ -99,7 +103,29 @@ print(missing_value_df)
 
 # Extract hour from pickup_datetime
 df_1=df[:100000]
-print(df_1.columns)
+print(df_1[['weekday', 'pickup_hour']].isnull().sum())
+
+days_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+df_1['weekday'] = pd.Categorical(df_1['weekday'], categories=days_order, ordered=True)
+heatmap_data = df_1.groupby(['weekday', 'pickup_hour']).size().unstack(fill_value=0)
+# مرتب‌سازی داده‌ها
+heatmap_data = heatmap_data.reindex(days_order)
+# تنظیم داده‌ها برای نقشه گرمایی
+heatmap_data = df_1.groupby(['weekday', 'pickup_hour']).size().unstack(fill_value=0)
+
+# مرتب‌سازی روزهای هفته
+days_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+heatmap_data = heatmap_data.reindex(days_order)
+
+# رسم نقشه گرمایی
+plt.figure(figsize=(12, 8))
+sns.heatmap(heatmap_data, cmap="YlGnBu", annot=False, fmt="d", cbar_kws={"label": "Activity Count"})
+plt.title("Heatmap of Activity Levels Throughout the Week")
+plt.xlabel("Hour of Day")
+plt.ylabel("Day of Week")
+plt.show()
+
+
 # 1. Trip Type Distribution by Hour  
 trip_type_hourly_distribution = df_1.groupby(['pickup_hour', 'trip_type']).size().unstack(fill_value=0)
 

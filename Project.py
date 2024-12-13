@@ -55,7 +55,7 @@ weekday_mapping = {
     'Saturday': 6,
     'Sunday': 7
 }
-
+print(df.pickup_month.unique())
 # Apply the mapping to the 'weekday' column
 df['weekday'] = df['weekday'].map(weekday_mapping)
 
@@ -450,11 +450,10 @@ import numpy as np
 
 
 param_grid = {
-    'learning_rate': [0.01, 0.05, 0.1],
-    'max_depth': [3, 5, 7],
-    'subsample': [0.8, 0.9, 1.0]
+    'learning_rate': [0.01, 0.05, 0.1, 0.2],  # Add finer steps for learning rate
+    'max_depth': [3, 4, 5, 7],              # Explore intermediate depths
+    'subsample': [0.7, 0.8, 0.9, 1.0]        # Include lower values for subsampling
 }
-
 grid_search = GridSearchCV(estimator=xgb_model, param_grid=param_grid, scoring='neg_mean_absolute_error', cv=5, verbose=1)
 grid_search.fit(X_train, y_train)
 
@@ -469,3 +468,53 @@ rmse = np.sqrt(mean_squared_error(y_test, y_pred))
 
 print(f"Mean Absolute Error (MAE): {mae:.2f}")
 print(f"Root Mean Squared Error (RMSE): {rmse:.2f}")
+
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+import numpy as np
+import xgboost as xgb
+
+# Function to evaluate the model
+def evaluate_model(learning_rate, max_depth, subsample):
+    max_depth = int(max_depth)
+
+    xgb_model = xgb.XGBRegressor(
+        learning_rate=learning_rate,
+        max_depth=max_depth,
+        subsample=subsample,
+        n_estimators=100,
+        random_state=42
+    )
+
+    xgb_model.fit(X_train, y_train)
+    y_pred = xgb_model.predict(X_test)
+
+    mae = mean_absolute_error(y_test, y_pred)
+    rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+    return mae, rmse
+
+
+# Expanded parameter values
+learning_rate_values = [0.01, 0.1, 0.2]
+max_depth_values = [3, 5, 7]
+subsample_values = [ 0.8, 0.9, 1.0]
+
+# Create a full factorial design (all combinations of parameters)
+from itertools import product
+orthogonal_array = np.array(list(product(learning_rate_values, max_depth_values, subsample_values)))
+print(orthogonal_array)
+# Run experiments and collect results
+results = []
+for i in range(orthogonal_array.shape[0]):
+    learning_rate, max_depth, subsample = orthogonal_array[i]
+    mae, rmse = evaluate_model(learning_rate, max_depth, subsample)
+    results.append((learning_rate, max_depth, subsample, mae, rmse))
+    print(
+        f"Experiment {i + 1}: Learning Rate = {learning_rate}, Max Depth = {max_depth}, Subsample = {subsample} => MAE = {mae:.2f}, RMSE = {rmse:.2f}"
+    )
+
+# Find the best combination based on MAE
+best_result = min(results, key=lambda x: x[3])  # Sort by MAE (index 3)
+print(
+    f"\nBest result: Learning Rate = {best_result[0]}, Max Depth = {best_result[1]}, Subsample = {best_result[2]} => MAE = {best_result[3]:.2f}, RMSE = {best_result[4]:.2f}"
+)
+

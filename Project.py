@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import LabelEncoder
 from sklearn.linear_model import LinearRegression
 from sklearn.feature_selection import RFE, SelectKBest, chi2
 from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor, RandomForestRegressor
@@ -47,7 +46,18 @@ df['pickup_hour'] = df['pickup_datetime'].dt.hour
 df['pickup_day'] = df['pickup_datetime'].dt.day
 df['pickup_month'] = df['pickup_datetime'].dt.month
 df['weekday'] = df['pickup_datetime'].dt.day_name()
-print(df[['weekday', 'pickup_hour']].isnull().sum())
+weekday_mapping = {
+    'Monday': 1,
+    'Tuesday': 2,
+    'Wednesday': 3,
+    'Thursday': 4,
+    'Friday': 5,
+    'Saturday': 6,
+    'Sunday': 7
+}
+
+# Apply the mapping to the 'weekday' column
+df['weekday'] = df['weekday'].map(weekday_mapping)
 
 # Extract dropoff datetime
 df['dropoff_datetime'] = pd.to_datetime(df['lpep_dropoff_datetime'], format='%m/%d/%Y %I:%M:%S %p')
@@ -103,23 +113,12 @@ print(missing_value_df)
 
 # Extract hour from pickup_datetime
 df_1=df[:100000]
-print(df_1[['weekday', 'pickup_hour']].isnull().sum())
-
-days_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-df_1['weekday'] = pd.Categorical(df_1['weekday'], categories=days_order, ordered=True)
-heatmap_data = df_1.groupby(['weekday', 'pickup_hour']).size().unstack(fill_value=0)
-# مرتب‌سازی داده‌ها
-heatmap_data = heatmap_data.reindex(days_order)
-# تنظیم داده‌ها برای نقشه گرمایی
-heatmap_data = df_1.groupby(['weekday', 'pickup_hour']).size().unstack(fill_value=0)
-
-# مرتب‌سازی روزهای هفته
-days_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-heatmap_data = heatmap_data.reindex(days_order)
+heatmap_data = df_1.groupby(['weekday', 'pickup_hour']).size().unstack()
 
 # رسم نقشه گرمایی
 plt.figure(figsize=(12, 8))
-sns.heatmap(heatmap_data, cmap="YlGnBu", annot=False, fmt="d", cbar_kws={"label": "Activity Count"})
+sns.heatmap(heatmap_data, cmap="YlGnBu", annot=True, fmt="d", cbar_kws={"label": "Activity Count"})
+plt.gca().set_yticklabels(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'])
 plt.title("Heatmap of Activity Levels Throughout the Week")
 plt.xlabel("Hour of Day")
 plt.ylabel("Day of Week")

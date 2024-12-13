@@ -130,6 +130,7 @@ trip_type_hourly_distribution = df_1.groupby(['pickup_hour', 'trip_type']).size(
 
 # Plotting the Trip Type Distribution by Hour  
 plt.figure(figsize=(14, 7))  
+sns.set_palette('husl') 
 sns.barplot(data=trip_type_hourly_distribution.reset_index().melt(id_vars=['pickup_hour']),
             x='pickup_hour', y='value', hue='trip_type', errorbar=None)
 plt.title('Trip Type Distribution by Hour of Day')  

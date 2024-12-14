@@ -16,6 +16,13 @@ from sklearn.metrics import mean_absolute_error, root_mean_squared_error, mean_s
 from sklearn.model_selection import GridSearchCV
 
 
+# Notice
+
+# Please read Jupyter notebook file in repo for a recently updated and more accurate code with better details and explanation!!!
+
+
+
+
 # Load the dataset
 df = pd.read_csv('2021_Green_Taxi_Trip_Data.csv')
 

@@ -132,6 +132,7 @@ top_zones = od_matrix.sum(axis=1).nlargest(25).index
 filtered_od_matrix = od_matrix.loc[top_zones, top_zones]
 filtered_od_matrix.loc['Total'] = filtered_od_matrix.sum()  # Sum for each drop-off column
 filtered_od_matrix['Total'] = filtered_od_matrix.sum(axis=1)
+print(filtered_od_matrix.info)
 print(filtered_od_matrix['Total'])
 print(filtered_od_matrix.T['Total'])
 if filtered_od_matrix['Total'].sum() == filtered_od_matrix.T['Total'].sum():

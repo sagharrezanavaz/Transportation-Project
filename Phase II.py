@@ -123,3 +123,27 @@ plt.xticks(rotation=45)
 plt.yticks(rotation=0)
 
 plt.show()
+#OD
+
+od_matrix = df.groupby(['LocationID_x', 'LocationID_y']).size().unstack(fill_value=0)
+print(od_matrix)
+# Get the top 25 zones based on total trips
+top_zones = od_matrix.sum(axis=1).nlargest(25).index
+filtered_od_matrix = od_matrix.loc[top_zones, top_zones]
+filtered_od_matrix.loc['Total'] = filtered_od_matrix.sum()  # Sum for each drop-off column
+filtered_od_matrix['Total'] = filtered_od_matrix.sum(axis=1)
+print(filtered_od_matrix['Total'])
+print(filtered_od_matrix.T['Total'])
+if filtered_od_matrix['Total'].sum() == filtered_od_matrix.T['Total'].sum():
+    print("The OD matrix is balanced.")
+else:
+    print("The OD matrix is not balanced.")
+# Plotting the heatmap for the filtered OD matrix
+plt.figure(figsize=(12, 10))
+sns.heatmap(filtered_od_matrix, cmap="YlGnBu", annot=True, fmt=".0f", cbar_kws={"label": "Number of Trips"},annot_kws={"size": 5})
+plt.title("Top 25 Origin-Destination Matrix Heatmap")
+plt.xlabel("Drop-off Zone")
+plt.ylabel("Pickup Zone")
+plt.xticks(rotation=45)
+plt.yticks(rotation=0)
+plt.show()

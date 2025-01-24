@@ -32,7 +32,11 @@ df['trip_type'] = df['trip_type'].astype(object)
 df.loc[(df['tip_amount'] > 0) & (df['payment_type'].isnull()), 'payment_type'] = 1
 df.loc[df['passenger_count'] > 4, 'payment_type'] = 6
 df.loc[df['passenger_count'] > 4, 'trip_type'] = 3
+
+empty_vendor_trips = df[df['VendorID'].isnull()].groupby(['PULocationID', 'DOLocationID']).size().unstack(fill_value=0)  
+#print(empty_vendor_trips)
 df.dropna(subset=['VendorID'], inplace=True)
+
 df['pickup_datetime'] = pd.to_datetime(df['lpep_pickup_datetime'], format='%m/%d/%Y %I:%M:%S %p')
 df = df[df['pickup_datetime'].dt.year == 2021]
 percent_missing = df.isnull().sum() * 100 / len(df)
@@ -184,15 +188,21 @@ print(result_df.head(10))
 ########################333#OD
 
 od_matrix = df.groupby(['LocationID_x', 'LocationID_y']).size().unstack(fill_value=0)
-print(od_matrix)
+#print(od_matrix)
 # Get the top 25 zones based on total trips
 top_zones = od_matrix.sum(axis=1).nlargest(25).index
+empty_vendor_trips=empty_vendor_trips.loc[top_zones,top_zones]
+
 filtered_od_matrix = od_matrix.loc[top_zones, top_zones]
+filtered_od_matrix=empty_vendor_trips+ filtered_od_matrix
+#print(filtered_od_matrix)
+
 filtered_od_matrix.loc['Total'] = filtered_od_matrix.sum()  # Sum for each drop-off column
 filtered_od_matrix['Total'] = filtered_od_matrix.sum(axis=1)
-print(filtered_od_matrix.info)
-print(filtered_od_matrix['Total'])
-print(filtered_od_matrix.T['Total'])
+
+#print(filtered_od_matrix.info)
+#print(filtered_od_matrix['Total'])
+#print(filtered_od_matrix.T['Total'])
 if filtered_od_matrix['Total'].sum() == filtered_od_matrix.T['Total'].sum():
     print("The OD matrix is balanced.")
 else:

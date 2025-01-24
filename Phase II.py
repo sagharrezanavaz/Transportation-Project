@@ -254,3 +254,47 @@ print(cost_matrix)
 # plt.xticks(rotation=45)
 # plt.yticks(rotation=0)
 # plt.show()
+
+#gravity
+def gravity_model(origin, destination, cost_matrix, impedance_func):
+    # Calculate impedance factors for the cost matrix
+    impedance_matrix = impedance_func(cost_matrix)
+    
+    # Initialize the flow matrix
+    num_zones = len(origin)
+    flow_matrix = np.zeros((num_zones, num_zones))
+    
+    # Compute the flow using the gravity model formula
+    for i in range(num_zones):
+        for j in range(num_zones):
+            if i != j:  # Skip diagonal elements if trips within the same zone aren't allowed
+                flow_matrix[i, j] = origin[i] * destination[j] * impedance_matrix[i, j]
+        
+        # Normalize flows to ensure row sums match origin totals
+        total_flows = np.sum(flow_matrix[i, :])
+        if total_flows > 0:
+            flow_matrix[i, :] *= origin[i] / total_flows
+    
+    return flow_matrix
+
+# Example of impedance function: exponential decay
+def exponential_impedance(cost_matrix, beta=0.1):
+    return np.exp(-beta * cost_matrix)
+
+filtered_od_matrix = filtered_od_matrix.drop(index='Total', columns='Total')
+origin = filtered_od_matrix.sum(axis=1).to_numpy()
+destination = filtered_od_matrix.sum(axis=0).to_numpy()
+cost_matrix_np = cost_matrix.to_numpy()
+print(f"origin length: {len(origin)}")
+print(f"destination length: {len(destination)}")
+print(f"cost_matrix shape: {cost_matrix_np.shape}")
+
+flow_matrix = gravity_model(
+    origin ,  # مجموع سفرها از هر منطقه
+    destination,  # مجموع سفرها به هر منطقه
+    cost_matrix=cost_matrix_np,
+    impedance_func=exponential_impedance
+)
+
+print("Flow Matrix:")
+print(flow_matrix)

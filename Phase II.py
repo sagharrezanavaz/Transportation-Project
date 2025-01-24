@@ -159,32 +159,38 @@ borough_ids = {
 result = []  
 for pu_col in od_matrix_percent.index:  
     for do_col in od_matrix_percent.columns:  
-        # فقط جفت‌های مختلف را نگه‌دارید و بررسی کنید که PULocationID و DOLocationID متفاوت باشند  
-        if pu_col != do_col:  
-            percent = od_matrix_percent.loc[pu_col, do_col]  
-            count = od_matrix.loc[pu_col, do_col]  # تعداد سفرها از ماتریس اصلی  
-            if percent > 0:  # تنها جفت‌های مثبت  
-                pickup_borough = pu_col.split('_')[-1]  # نام بوره  
-                dropoff_borough = do_col.split('_')[-1]  # نام بوره  
-                
-                # شرط تازه: سفرها باید بین دو بوره متفاوت باشند  
-                if pickup_borough != dropoff_borough:  
-                    result.append({  
-                        'Pickup': pickup_borough,  
-                        'Dropoff': dropoff_borough,  
-                        'Percentage': percent,  
-                        'Trip Count': count  # استفاده از دیکشنری برای شناسه  
-                    })  
+        percent = od_matrix_percent.loc[pu_col, do_col]  
+        count = od_matrix.loc[pu_col, do_col]  # تعداد سفرها از ماتریس اصلی  
+        if percent > 0:  # تنها جفت‌های مثبت  
+            pickup_borough = pu_col.split('_')[-1]  # نام بوره  
+            dropoff_borough = do_col.split('_')[-1]  # نام بوره  
+            
+            # ذخیره تمام مقادیر در نتیجه بدون اعمال شرط
+            result.append({  
+                'Pickup': pickup_borough,  
+                'Dropoff': dropoff_borough,  
+                'Percentage': percent,  
+                'Trip Count': count  # استفاده از دیکشنری برای شناسه  
+            })  
 
-# تبدیل به DataFrame و مرتب‌سازی بر اساس درصد سفرها  
+# تبدیل به DataFrame
 result_df = pd.DataFrame(result)  
-result_df = result_df.sort_values(by='Percentage', ascending=False)  
 
-# تغییر نام ستون‌ها برای خوانایی بهتر  
-result_df.columns = ['Pickup Borough', 'Dropoff Borough', 'Percentage of Trips', 'Number of Trips']  
+# اعمال شرط در سطح DataFrame: فیلتر کردن بخش‌هایی که مبدا و مقصد یکی هستند
+result_diff = result_df[result_df['Pickup'] != result_df['Dropoff']]
+result_diff = result_diff.sort_values(by='Percentage', ascending=False)  
+result_diff.columns = ['Pickup Borough', 'Dropoff Borough', 'Percentage of Trips', 'Number of Trips']  
+print("Ranking City Blocks by the Highest Percentage of Inter-Block Trips")
+result_diff.index = np.arange(1, len(result_diff)+1)
+print(result_diff.head(10))
 
-# نمایش جفت‌های با بیشترین درصد سفر  
-print(result_df.head(10))
+result_same = result_df[result_df['Pickup'] == result_df['Dropoff']]
+result_same = result_same.sort_values(by='Percentage', ascending=False)  
+result_same.columns = ['Pickup Borough', 'Dropoff Borough', 'Percentage of Trips', 'Number of Trips']  
+print("\n Ranking City Blocks by the Highest Percentage of Intra-Block Trips")
+result_same.index = np.arange(1, len(result_same)+1)
+print(result_same.head(5))
+
 ########################333#OD
 
 od_matrix = df.groupby(['LocationID_x', 'LocationID_y']).size().unstack(fill_value=0)

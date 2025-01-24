@@ -222,3 +222,35 @@ plt.ylabel("Pickup Zone")
 plt.xticks(rotation=45)
 plt.yticks(rotation=0)
 plt.show()
+
+##هزینه کلی
+# ساخت ماتریس خالی برای میانگین هزینه‌ها
+cost_matrix = pd.DataFrame(index=top_zones, columns=top_zones).fillna(0)
+
+# پر کردن ماتریس با میانگین هزینه برای هر جفت مبدا و مقصد
+for pickup_zone in top_zones:
+    for dropoff_zone in top_zones:
+        # فیلتر کردن داده‌ها برای زون‌های مبدا و مقصد خاص
+        filtered_data = df[(df['LocationID_x'] == pickup_zone) & (df['LocationID_y'] == dropoff_zone)]
+        
+        # محاسبه میانگین هزینه
+        if not filtered_data.empty:
+            avg_cost = filtered_data['total_amount'].mean()
+        else:
+            avg_cost = 0  # اگر داده‌ای وجود نداشت، مقدار صفر قرار داده می‌شود
+        
+        # پر کردن ماتریس با مقدار میانگین هزینه
+        cost_matrix.loc[pickup_zone, dropoff_zone] = avg_cost
+
+# نمایش ماتریس میانگین هزینه
+print(cost_matrix)
+
+# # رسم نمودار Heatmap برای ماتریس میانگین هزینه
+# plt.figure(figsize=(12, 10))
+# sns.heatmap(cost_matrix.astype(float), cmap="YlGnBu", annot=True, fmt=".2f", cbar_kws={"label": "Average Cost"}, annot_kws={"size": 7})
+# plt.title("Average Cost Matrix for Top Zones")
+# plt.xlabel("Drop-off Zone")
+# plt.ylabel("Pickup Zone")
+# plt.xticks(rotation=45)
+# plt.yticks(rotation=0)
+# plt.show()

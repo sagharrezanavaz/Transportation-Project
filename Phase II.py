@@ -256,45 +256,96 @@ print(cost_matrix)
 # plt.show()
 
 #gravity
-def gravity_model(origin, destination, cost_matrix, impedance_func):
-    # Calculate impedance factors for the cost matrix
-    impedance_matrix = impedance_func(cost_matrix)
+def gravity_model(O, D,cost_matrix,deterrence_matrix, error_threshold=0.01, improvement_threshold=1e-4,):
     
-    # Initialize the flow matrix
-    num_zones = len(origin)
-    flow_matrix = np.zeros((num_zones, num_zones))
-    
-    # Compute the flow using the gravity model formula
-    for i in range(num_zones):
-        for j in range(num_zones):
-            if i != j:  # Skip diagonal elements if trips within the same zone aren't allowed
-                flow_matrix[i, j] = origin[i] * destination[j] * impedance_matrix[i, j]
-        
-        # Normalize flows to ensure row sums match origin totals
-        total_flows = np.sum(flow_matrix[i, :])
-        if total_flows > 0:
-            flow_matrix[i, :] *= origin[i] / total_flows
-    
-    return flow_matrix
+    # Function to format and print matrices
+    def format_matrix(matrix, name):
+        rows, cols = matrix.shape  # Get dimensions of the matrix
+        labels = [f"Zone {i + 1}" for i in range(rows)]  # Generate zone labels
+        df = pd.DataFrame(matrix, columns=labels, index=labels)  # Format as DataFrame
+        print(f"Matrix: {name}\n{df}\n")  # Print formatted matrix
+
+    # Normalize O and D so their sums are equal
+    sum_O = np.sum(O)  # Sum of all elements in O
+    sum_D = np.sum(D)  # Sum of all elements in D
+    if sum_O != sum_D:
+        if sum_O < sum_D:
+            correction_ratio = sum_D / sum_O
+            O = O * correction_ratio
+        else:
+            correction_ratio = sum_O / sum_D
+            D = D * correction_ratio
+
+    n = len(O)  # Number of zones
+    T = np.sum(O)  # Total number of trips
+
+    Ai = np.ones(n)  # Initial balancing factor for origins
+    Bj = np.ones(n)  # Initial balancing factor for destinations
+
+    previous_error = np.inf  # Initialize previous error to infinity
+    iteration_count = 0  # Initialize iteration count
+    stop_reason = ""  # Initialize stop reason
+
+    while True:
+        iteration_count += 1  # Increment iteration count
+
+        # Update Ai and Bj balancing factors
+        Ai = 1 / (np.sum(Bj * D * deterrence_matrix, axis=1) + 1e-9)
+        Bj_new = 1 / (np.sum(Ai[:, None] * O[:, None] * deterrence_matrix, axis=0) + 1e-9)
+
+        # Calculate Tij matrix and error metrics
+        Tij = np.outer(Ai * O, Bj_new * D) * deterrence_matrix
+        error = (np.sum(np.abs(O - Tij.sum(axis=1))) + np.sum(np.abs(D - Tij.sum(axis=0)))) / T
+        error_change = abs(previous_error - error)
+
+        # Check stopping conditions
+        if error < error_threshold:
+            stop_reason = "Error threshold met"
+            break
+        elif error_change < improvement_threshold:
+            stop_reason = "Slow improvement"
+            break
+
+        previous_error = error  # Update the previous error
+        Bj = Bj_new  # Update Bj with new values
+
+    # Format and print the final OD matrix
+    final_matrix = pd.DataFrame(
+    Tij,
+    columns=filtered_od_matrix.columns,  # Use original drop-off indexes
+    index=filtered_od_matrix.index,  # Use original pickup indexes
+    )
+    final_matrix["Origin"] = final_matrix.sum(axis=1)  # Sum of rows as Origin
+    final_matrix.loc["Destination"] = final_matrix.sum()  # Sum of columns as Destination
+
+    # Print the final results
+    print("Final OD Matrix:")
+    print(final_matrix.round(3), "\n")
+    print(f"Number of Iterations: {iteration_count}")
+    print(f"Stopping Condition: {stop_reason}")
+    print(f"Error: {error * 100:.3f}% \n")
 
 # Example of impedance function: exponential decay
-def exponential_impedance(cost_matrix, beta=0.1):
+def new_cost(cost_matrix, beta=0.1):
     return np.exp(-beta * cost_matrix)
 
 filtered_od_matrix = filtered_od_matrix.drop(index='Total', columns='Total')
 origin = filtered_od_matrix.sum(axis=1).to_numpy()
 destination = filtered_od_matrix.sum(axis=0).to_numpy()
 cost_matrix_np = cost_matrix.to_numpy()
-print(f"origin length: {len(origin)}")
-print(f"destination length: {len(destination)}")
-print(f"cost_matrix shape: {cost_matrix_np.shape}")
 
-flow_matrix = gravity_model(
-    origin ,  # مجموع سفرها از هر منطقه
-    destination,  # مجموع سفرها به هر منطقه
+i=len(df.columns)
+j = i
+
+C_new1 = np.where(cost_matrix_np == np.inf, 0, new_cost(cost_matrix_np))  # Replace infinities with 0 for cost matrix
+
+# Use the transformed cost matrix as the deterrence matrix
+deterrence_matrix = C_new1
+G= gravity_model(
+    O=origin,
+    D=destination,
     cost_matrix=cost_matrix_np,
-    impedance_func=exponential_impedance
+    deterrence_matrix=deterrence_matrix,
+    error_threshold=0.03,
+    improvement_threshold=1e-4
 )
-
-print("Flow Matrix:")
-print(flow_matrix)
